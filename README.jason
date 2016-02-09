@@ -1,0 +1,47 @@
+# This is all based off the the work of: 
+# https://github.com/ajasmin/android-linux-tethering/blob/master/README.slirp
+# But this uses Wind River Linux 4.3 to build the binary
+
+# Create/change to the project directory
+mkdir PROJ_DIR
+cd PROJ_DIR
+
+# Run the configure for WRL 4.3
+PRODUCT_PATH/configure --enable-board=ti_omap3530evm --enable-rootfs=glibc_small --enable-kernel=standard
+make fs
+make sysroot
+
+# Setup the cross compiler
+cat<<EOF>compset.sh
+eval \`grep ^TOOLCHAIN_EXEC_PREFIX scripts/autoconf.mk  |sed 's/ //g ; s/\t//g ; s/^TOOL/export TOOL/'\`
+eval \`grep ^TOOLCHAIN_BIN_DIR scripts/autoconf.mk  |sed 's/ //g ; s/\t//g ; s/^TOOL/export TOOL/'\`
+export PATH=\$TOOLCHAIN_BIN_DIR:\`ls -d \$TOOLCHAIN_EXEC_PREFIX/bin\`:\`pwd\`/host-cross/bin:\$PATH
+unset TOOLCHAIN_EXEC_PREFIX
+eval \`grep ^HOST_BUILD Makefile  |sed 's/ //g; s/^HOST/export HOST/'\`
+eval \`grep ^TOOLCHAIN\  Makefile  |sed 's/ //g; s/^TOOLCHAIN/export TOOLCHAIN/'\`
+eval \`grep ^TARGET_LINUX_ARCH Makefile  |sed 's/ //g; s/^TARGET_LINUX_ARCH/export TARGET_LINUX_ARCH/'\`
+
+# Example compile
+# make -C build/linux-2.6.21* CROSS_COMPILE=\$TOOLCHAIN- ARCH=\$TARGET_LINUX_ARCH M=/path_to_module
+EOF
+
+# Get the sources
+git clone https://github.com/jwessel/android-slirp.git
+
+# Setup the environment and build
+. ./compset.sh
+
+cd android-slirp/src
+
+export CC=arm-wrs-linux-gnueabi-armv7at2vfpneon-glibc_small-gcc
+
+ac_cv_sizeof_char_p=4 sr_cv_gethostid=yes sr_cv_unix_sockets=yes sr_cv_sprintf_int=yes sr_cv_next=no sr_cv_sprintf_declare=no ./configure --host x86
+cat<<EOF>>config.h
+#define HAVE_RANDOM 1
+#define HAVE_SRANDOM 1
+#define FULL_BOLT 1
+EOF
+
+# Build with -fPIC so it runs on Android 5.x
+make LIBS="-lcrypt -lnsl -fPIC -static"
+arm-wrs-linux-gnueabi-armv7at2vfpneon-glibc_small-strip slirp
