@@ -535,7 +535,7 @@ main_init(argc, argv)
     free(exec_shell);
     exec_shell = 0;
   } else
-    add_exec(&exec_list, 1, "/bin/sh", CTL_EXEC, htons(23));
+    add_exec(&exec_list, 1, "/system/bin/sh", CTL_EXEC, htons(23));
 
   add_exec(&exec_list, 0, "slirp.ftpd", CTL_EXEC, htons(21));
 #ifdef USE_PPP
