@@ -1,0 +1,34 @@
+# Android <-> Linux Tethering Script with Slirp
+
+# This script tether the internet from the phone to your PC using Slirp
+
+# See http://ajasmin.wordpress.com/2011/07/24/android-usb-tethering-with-a-linux-pc/
+
+# Path to ADB
+export ADB=/space/jw/droid/android-sdk-linux/platform-tools/adb
+
+if [ $USER != "root" ]; then
+	echo "Please run this script as root"
+	exit
+fi
+
+echo "Connecting to the phone via slirp..."
+ip=`$ADB shell ip route show |awk '{print $9}'`
+dns=`$ADB shell getprop net.dns1`
+echo "Android IP: $ip"
+echo "Android DNS: $dns"
+$ADB ppp "shell:HOME=/data/local/tmp /data/local/tmp/slirp \"dns $dns\" \"host addr $ip\" ppp mtu 1500" nodetach noauth noipdefault defaultroute usepeerdns notty 10.0.2.15:10.64.64.64
+#$ADB ppp "shell:HOME=/data/local/tmp /data/local/tmp/slirp ppp mtu 1500" nodetach noauth noipdefault defaultroute notty 10.0.2.15:10.64.64.64
+
+sleep 1
+route add default gw 10.64.64.64
+ecode=$?
+
+if [ $ecode != 0 ] ; then
+   echo "ERROR: failed to setup link please try again."
+else
+   echo "Done."
+fi
+exit $ecode
+
+
